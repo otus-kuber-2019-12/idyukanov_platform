@@ -1,9 +1,3 @@
-# Выполнено ДЗ №
-
- - [x] Основное ДЗ
- - [x] Задание со *
- - [x] Задание со **
-
 ## В процессе сделано:
  - Запущено окружение с помощью локального кластера kind
  - Создан манифест frontend-replicaset.yaml, добавлены образ с предыдущего задания и env
@@ -96,6 +90,3 @@ kubectl delete pods -l app=frontend | kubectl get pods -l app=frontend -w
  - Проверка образа в контейнерах kubectl get pods -l app=frontend -o=jsonpath='{.items[0:3].spec.containers[0].image}'
  - История версий kubectl rollout history deployment paymentservice
  - Откат kubectl rollout undo deployment paymentservice --to-revision=1
-
-## PR checklist:
- - [x] Выставлен label с номером домашнего задания
