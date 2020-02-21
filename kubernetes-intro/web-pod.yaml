@@ -8,6 +8,12 @@ spec:
   containers:
   - name: web
     image: boroda747/app-web:v1
+    livenessProbe:
+      tcpSocket: { port: 8000 }
+    readinessProbe:
+      httpGet:
+        path: /index.html
+        port: 80
     volumeMounts:
     - name: app
       mountPath: /app
