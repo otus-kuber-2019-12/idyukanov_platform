@@ -2,8 +2,6 @@ import kopf
 import yaml
 import kubernetes
 import time
-import signal
-import sys
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -43,45 +41,6 @@ def delete_success_jobs(mysql_instance_name):
                 api.delete_namespaced_job(jobname,
                                           'default',
                                           propagation_policy='Background')
-
-
-@kopf.on.update('otus.homework', 'v1', 'mysqls')
-# Функция, которая будет запускаться при обновлении объектов тип MySQL:
-def update_psswd(body, spec, diff, status, logger, **kwargs):
-    
-    name = body['metadata']['name']
-    image = body['spec']['image']
-    password = body['spec']['password']
-    database = body['spec']['database']    
-
-    deployment_patch = render_template('mysql-deployment.yml.j2', {
-        'name': name,
-        'image': image,
-        'password': password,
-        'database': database})
-
-    for diff_entry in diff:
-      if diff_entry[0] == "change":
-        if diff_entry[1][1] == "password":
-          old_pass = diff_entry[2]
-          new_pass = diff_entry[3]
-
-          pass_change_job = render_template('pass-change-job.yml.j2', {
-            'name': name,
-            'image': image,
-            'old_password': old_pass,
-            'new_password': new_pass})
-
-          api = kubernetes.client.BatchV1Api()
-          api.create_namespaced_job('default', pass_change_job)
-          if wait_until_job_end(f"pass-change-{name}-job"):
-              kopf.info(body, reason="PassChange", message="Password for " + name + " has been changed.")
-      
-    api = kubernetes.client.AppsV1Api()
-    api.patch_namespaced_deployment(name,'default',deployment_patch)
-
-
-
 
 
 @kopf.on.create('otus.homework', 'v1', 'mysqls')
@@ -130,20 +89,19 @@ def mysql_on_create(body, spec, **kwargs):
 
     # Создаем mysql Deployment:
     api = kubernetes.client.AppsV1Api()
-    deployment = api.create_namespaced_deployment('default', deployment)
-    status = "with"    
+    api.create_namespaced_deployment('default', deployment)
     # Пытаемся восстановиться из backup
     try:
         api = kubernetes.client.BatchV1Api()
         api.create_namespaced_job('default', restore_job)
     except kubernetes.client.rest.ApiException:
-        status = "without" 
         pass
 
     # Cоздаем PVC  и PV для бэкапов:
     try:
         backup_pv = render_template('backup-pv.yml.j2', {'name': name})
         api = kubernetes.client.CoreV1Api()
+        print(api.create_persistent_volume(backup_pv))
         api.create_persistent_volume(backup_pv)
     except kubernetes.client.rest.ApiException:
         pass
@@ -154,7 +112,6 @@ def mysql_on_create(body, spec, **kwargs):
         api.create_namespaced_persistent_volume_claim('default', backup_pvc)
     except kubernetes.client.rest.ApiException:
         pass
-    return {'Message': "mysql-instance created " + status +" restore-job"}
 
 
 @kopf.on.delete('otus.homework', 'v1', 'mysqls')
@@ -176,6 +133,3 @@ def delete_object_make_backup(body, **kwargs):
     api.create_namespaced_job('default', backup_job)
     wait_until_job_end(f"backup-{name}-job")
     return {'message': "mysql and its children resources deleted"}
-
-
-signal.signal(signal.SIGINT, lambda x, y: sys.exit(0))
