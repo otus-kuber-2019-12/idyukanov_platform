@@ -61,6 +61,11 @@ backup-mysql-instance-job    1/1           2s         22s
 ```
  - Применил заново deploy/cr.yml
 ```
+kubectl get jobs.batch
+NAME                         COMPLETIONS   DURATION   AGE
+backup-mysql-instance-job    1/1           3s         2m14s
+restore-mysql-instance-job   1/1           34s        111s
+
 kubectl exec -it $MYSQLPOD -- mysql -potuspassword -e "select * from test;" otusdatabase
 +----+-------------+
 | id | name        |
